@@ -211,21 +211,17 @@ fn convert_color_string_to_rgb(color: &String) -> Result<RgbColor, String> {
 }
 
 fn calc_center(text: &String, font_size: u16, font: &FontRef, image: &RgbImage) -> (i32, i32) {
-    let id_list = text.chars().map(|c| font.glyph_id(c));
-    let glyphs = id_list
-        .filter_map(|id| font.glyph_raster_image2(id, font_size))
+    let id_list = text.chars().map(|c| font.glyph_id(c)).collect::<Vec<_>>();
+    let boxes = id_list
+        .iter()
+        .map(|id| font.glyph_bounds(&id.with_scale(font_size as f32)))
         .collect::<Vec<_>>();
 
-    let max_width = glyphs.iter().map(|g| g.width).max().unwrap_or(0);
-    let max_height = glyphs.iter().map(|g| g.height).max().unwrap_or(0);
-    let min_width = glyphs.iter().map(|g| g.width).min().unwrap_or(0);
-    let min_height = glyphs.iter().map(|g| g.height).min().unwrap_or(0);
+    let max_height = boxes.iter().map(|g| g.height() as u16).max().unwrap_or(0);
+    let width_sum = boxes.iter().map(|g| g.width() as u16).sum::<u16>();
 
-    let width_diff = max_width - min_width;
-    let height_diff = max_height - min_height;
-
-    let center_x = (image.width() as i32 - width_diff as i32) / 2;
-    let center_y = (image.height() as i32 - height_diff as i32) / 2;
+    let center_x = (image.width() as i32 / 2) - (width_sum as i32 / 2);
+    let center_y = (image.height() as i32 / 2) - (max_height as i32 / 2);
 
     (center_x, center_y)
 }
