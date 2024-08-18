@@ -1,10 +1,21 @@
 use ab_glyph::{Font, FontRef};
 use clap::{command, Parser};
-use image::{Rgb, RgbImage};
+use image::{
+    codecs::{
+        bmp::BmpEncoder,
+        gif::GifEncoder,
+        jpeg::JpegEncoder,
+        png::{CompressionType, FilterType, PngEncoder},
+    },
+    ColorType, ImageEncoder, ImageFormat, Rgb, RgbImage,
+};
 use imageproc::drawing::draw_text_mut;
 use regex::bytes::Regex;
 
-use std::path::{Path, PathBuf};
+use std::{
+    fs::{File, OpenOptions},
+    path::{Path, PathBuf},
+};
 
 fn load_image(path: &PathBuf) -> Result<RgbImage, String> {
     match image::open(path) {
@@ -62,10 +73,70 @@ fn my_draw_text(
 }
 
 fn save_image(path: &PathBuf, image: &RgbImage) -> Result<(), String> {
-    match image.save(path) {
-        Ok(_) => return Ok(()),
+    let format = match ImageFormat::from_path(path) {
+        Ok(f) => f,
         Err(e) => return Err(e.to_string()),
     };
+
+    let mut file = match if path.is_file() {
+        OpenOptions::new().write(true).open(path)
+    } else {
+        File::create(path)
+    } {
+        Ok(f) => f,
+        Err(e) => {
+            eprintln!("file:");
+            return Err(e.to_string());
+        }
+    };
+
+    let result = match format {
+        ImageFormat::Png => {
+            let e =
+                PngEncoder::new_with_quality(file, CompressionType::Default, FilterType::NoFilter);
+            e.write_image(
+                image.as_raw(),
+                image.width(),
+                image.height(),
+                ColorType::Rgb8.into(),
+            )
+        }
+        ImageFormat::Jpeg | ImageFormat::Avif => {
+            let e = JpegEncoder::new_with_quality(file, 100);
+            e.write_image(
+                image.as_raw(),
+                image.width(),
+                image.height(),
+                ColorType::Rgb8.into(),
+            )
+        }
+        ImageFormat::Gif => {
+            let mut e = GifEncoder::new(file);
+            e.encode(
+                image.as_raw(),
+                image.width(),
+                image.height(),
+                ColorType::Rgb8.into(),
+            )
+        }
+        ImageFormat::Bmp => {
+            let mut e = BmpEncoder::new(&mut file);
+            e.encode(
+                image.as_raw(),
+                image.width(),
+                image.height(),
+                ColorType::Rgb8.into(),
+            )
+        }
+        _ => {
+            return Err("unsupported image format".to_string());
+        }
+    };
+
+    match result {
+        Ok(_) => Ok(()),
+        Err(e) => Err(e.to_string()),
+    }
 }
 
 #[derive(Clone, Parser, Debug)]
