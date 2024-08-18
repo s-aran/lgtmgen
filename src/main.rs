@@ -169,13 +169,13 @@ struct Args {
     #[arg(short = 's', long = "size", default_value_t = 200, help = "font size")]
     font_size: u16,
 
-    #[arg(short = 'f', long = "font", help = "path of OTF/TTF font file")]
+    #[arg(short = 'f', long = "font", help = "OTF/TTF font file")]
     font_path: String,
 
-    #[arg(short = 'i', long = "image", help = "path of background image")]
+    #[arg(short = 'i', long = "image", help = "background image file")]
     image_path: String,
 
-    #[arg(short = 'o', long = "output", help = "path of output image")]
+    #[arg(short = 'o', long = "output", help = "output image file")]
     output_path: String,
 }
 
