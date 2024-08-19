@@ -176,22 +176,19 @@ struct Args {
     image_path: String,
 
     #[arg(short = 'o', long = "output", help = "output image file")]
-    output_path: String,
+    output_path: Option<String>,
 }
 
 type RgbColor = (u8, u8, u8);
 
 fn convert_color_string_to_rgb(color: &String) -> Result<RgbColor, String> {
-    static RGB_PATTERN_6: &str = "^#?([0-9a-f]{6})$";
-    static RGB_PATTERN_3: &str = "^#?([0-9a-f]{3})$";
-
-    let re_6 = Regex::new(RGB_PATTERN_6).unwrap();
-    let re_3 = Regex::new(RGB_PATTERN_3).unwrap();
-
     let lowered = color.to_lowercase();
 
+    // #FFFFFF
     {
-        let captures = re_6.captures(&lowered.as_bytes());
+        static RGB_PATTERN: &str = "^#?([0-9a-f]{6})$";
+        let re = Regex::new(RGB_PATTERN).unwrap();
+        let captures = re.captures(&lowered.as_bytes());
         if captures.is_some() {
             let c = captures.unwrap();
 
@@ -228,8 +225,11 @@ fn convert_color_string_to_rgb(color: &String) -> Result<RgbColor, String> {
         }
     }
 
+    // #FFF
     {
-        let captures = re_3.captures(&lowered.as_bytes());
+        static RGB_PATTERN: &str = "^#?([0-9a-f]{3})$";
+        let re = Regex::new(RGB_PATTERN).unwrap();
+        let captures = re.captures(&lowered.as_bytes());
         if captures.is_some() {
             let c = captures.unwrap();
 
@@ -344,7 +344,23 @@ fn main() {
         }
     }
 
-    let dest_image = Path::new(&args.output_path);
+    let dest_path = match &args.output_path {
+        Some(p) => PathBuf::from(p),
+        None => {
+            let p = Path::new(&args.image_path);
+            let name = p.with_extension("");
+            let ext = p
+                .extension()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .into_owned();
+
+            let new_path = format!("{}_{}.{}", name.to_string_lossy(), "out", ext);
+            PathBuf::from(new_path)
+        }
+    };
+
+    let dest_image = Path::new(&dest_path);
     match save_image(&dest_image.to_path_buf(), &source_image) {
         Ok(()) => {}
         Err(e) => {
